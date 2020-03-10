@@ -22,11 +22,13 @@ logstash -f C:\Software\data\apache.conf
 http://localhost:9200/logstash*/_count 
 ```
 
-9.Next, create the index pattern and visualiser for the data on Kibana:
+9.Next, create the index pattern and visualiser for the dashboard on Kibana:
 
-Kibana -> Discover -> Create Index pattern: index pattern = "logstash*" with @timestamp as the time filter field.
+Kibana -> Discover tab (to analyze data) -> Create Index pattern: index pattern = "logstash-*  with @timestamp as the time filter field.
 
-Kibana -> Visualize -> 
+Kibana -> Visualize tab (to create visualization) -> Create visualization fo a type say table, bar chart etc.
+
+Kibana -> Dashboard tab (to see the data) -> Give dashboard a name and choose the visualization created above. You can use multiple visualizations on this dashboard.
 
 ----------------------------
 
@@ -187,6 +189,11 @@ GET /vehicles/car/_search
 						}
 ```
 
+**Beats**
+
+Suppose we have to collate real time logs from different devices (web, mobile, desktop app). These devices can have beats like say filebeat, that collects and streams the logs onto the central logstash server that ingests all logs and send them to elastic search, which can then be vieweved on the Kibana UI. 
+
+In case logstash is overloaded, it sends a message to filebeat to slow down, and then filebeat will wait for sometime before sending the logs onto logstash.
 
 
 
