@@ -1,9 +1,9 @@
 # ELK
-Elasticsearch-Logstash-kibana
+Elasticsearch-Logstash-Kibana
 
 Logstash ingests, enhances and parses log files and outputs them to elastic search. This data can then be queried and viewed using Kibana dashboard.
 
-## Project Setup:
+## Project Setup
 
 1. Download/install Elastic search, Kibana and Logstash from elastic.co
 2. Start ElasticSearch from bin directory, and open http://localhost:9200 on browser.
@@ -27,7 +27,7 @@ Kibana -> Visualize tab (to create visualization) -> Create visualization for a 
 
 Kibana -> Dashboard tab (to see the data) -> Give dashboard a name and choose the visualization created above. You can use different visualizations on this dashboard.
 
-## Theory:
+## Theory
 
 ### Logstash
 
@@ -101,9 +101,7 @@ POST /vehicles/cars/_bulk
 
 GET query returns the data array against 'hits' key in the response json. The _score value in the response gives the relevance of the returned document. _maxScore is the highest score among the the documents returned.
 
-**Search with pagination:**
-
-GET by default returns top 10 records. You can modify this behaviour by giving size parameter. You can combine from, size and sort parameters to get paginated results. eg:
+**Pagination:** GET by default returns top 10 records. You can modify this behaviour by giving size parameter. You can combine from, size and sort parameters to get paginated results. eg:
 
 ```
 GET /vehicles/car/_search
@@ -119,7 +117,7 @@ GET /vehicles/car/_search
 }
 
 ```
-**Index Structure:**
+**Index Structure**
 
 The PUT shown above creates the index structure on the fly by itself. ES assigns datatypes to the fields as per the data being fed.
 //TODO: available data types
@@ -157,7 +155,8 @@ After defining the mapping, if you try to insert a document with an extra data c
 > "dynamic":false	  //simply ignores document not in agreed schema
 > "dynamic":"strict"  //throw error if document not as per agreed schema
 
-**DSL: Domain Specific Language** - JSON language that Elastic search understands. DSL has 2 components: **Query and Filter**
+**DSL: Domain Specific Language** is the JSON language that Elastic search understands. DSL has 2 components: **Query and Filter**
+
 1. Query context
 
 query:bool:must/must_not/should(good to have), query:range
