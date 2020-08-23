@@ -19,13 +19,34 @@ logstash -f C:\Software\data\apache.conf
 ```
 http://localhost:9200/logstash*/_count 
 ```
-9. Next, create the index pattern and visualiser for the index created by the data injestion in above steps above on Kibana dashboard:
+9. Next, explore Kibana dashboard. Create the index pattern and visualiser for the index created by the data injestion in above steps above on Kibana dashboard:
 
 Kibana -> Discover tab (to analyze data) -> Create Index pattern: index pattern = "logstash-*  with @timestamp as the time filter field.
 
 Kibana -> Visualize tab (to create visualization) -> Create visualization for a type say table, bar chart etc.
 
 Kibana -> Dashboard tab (to see the data) -> Give dashboard a name and choose the visualization created above. You can use different visualizations on this dashboard.
+
+**Docker Setup:** You can also chooose to setup ES, Kibana and Logstash using Docker images. Run below commands and open respective urls to verify that installation has been completed:
+
+```
+//ES
+docker run -d --name es762 -p 9200:9200 -e "discovery.type=single-node" elasticsearch:7.6.2
+
+http://localhost:9200/
+
+//Kibana (link it with ES container)
+docker run --name kibana762 --link es762:elasticsearch -p 5601:5601 kibana:6.8.10
+
+http://localhost:5601/
+
+//Logstash (link it with ES container)
+Settings files can also be provided through bind-mounts. Logstash expects to find them at /usr/share/logstash/config/. by default. It’s possible to provide custom directory containing all needed files:
+
+docker run --name logstash762 --link es762:elasticsearch --rm -it -v ~/settings/:/Users/ramit21/git/ELK/data/logstash_mac/ docker.elastic.co/logstash/logstash:7.9.0
+
+
+```
 
 ## Theory
 
@@ -201,4 +222,6 @@ GET /vehicles/car/_search
 ## References
 
 Java-ES POC: https://github.com/ramit21/elasticsearch-java
+
+ELK stack using custom yml configs with Docker: https://medium.com/analytics-vidhya/elk-stack-in-docker-6285ec1ac1aa
 
