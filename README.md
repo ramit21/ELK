@@ -45,14 +45,17 @@ Settings files can also be provided through bind-mounts. Logstash expects to fin
 
 docker run --name logstash762 --link es762:elasticsearch --rm -it -v ~/settings/:/Users/ramit21/git/ELK/data/logstash_mac/ docker.elastic.co/logstash/logstash:7.9.0
 
-
 ```
 
 ## Theory
 
 ### Logstash
 
-To learn about logstash, go to below url, and just read about most commonly used sections- input, filter and output plugins.
+Used to injest, process and push data out to the destination. Source of injestion can be files, S3, beats, Kafka etc. Destination can be elastic-search, AWS, hadoop, mongo db etc. In the processing step, it can parse, transform, filter, derive structure from unstructured data etc.
+
+Can scale across many nodes.
+
+To learn more about logstash, go to below url, and just read about most commonly used sections- input, filter and output plugins.
 https://www.elastic.co/guide/en/logstash/current/index.html
 
 ## Beats
@@ -61,20 +64,48 @@ Suppose we have to collate real time logs from different devices (web, mobile, d
 
 **Backpressure:** In case logstash is overloaded, it sends a message to filebeat to slow down, and then filebeat will wait for sometime before sending the logs onto logstash.
 
+Logstash-ES-Kibana is called 'ELK'.
+
+Beats-Logstash-ES-Kibana is called 'elastic stack'.
 
 ### Elastic Search
 
-ES basically is a distributed version of Lucene. ES index is made up multiple shards. Each shard is made up of segments. Each segment is an inverted index. 
+ES basically is a distributed scalable version of Lucene. ES index is made up multiple shards. Each shard is made up of segments. Each segment is an inverted index. 
+
+Data is partitioned to give scalability when reading. Data can also be replicated among shards. Writes are send to primary shard and then replicated. Read request can be routed to any of the read replcias.
+
+Once index has been created, no. of replicas can be increased on runtime. No. of shards however cannot be changed, and if really required, you need to re-index your data (redistribute among the shards).
 
 **Indexing:** Converting data into inverted index, is a time consuming process. Idea is to keep read fast. ES takes care of text anlysis and indexing. Text anlysis consists of removing stop words, lowercasing, stemming, synonyms. The analyzer used during querying should be the same as the one used for indexing.
 
 Elastic search uses inverted index for indexing the words. ES also maintains a relevance score on the indexed items.
 
-Elastic search is document based. Rel db to ES6 analogy: Table-> index, row-> document, column->field.
+Elastic search is document based. Rel db to ES6 analogy: Table -> Index, row -> Document, column -> Field.
 
 ES sends/receives data as JSON over HTTP(s).
 
-ES automatically assigns data types to the data (JSON fields) inserted into it.
+3 ways to interact with ES:
+1. ES Rest endpoints via curl/postman etc.
+2. From programming languages' client APIs
+3. Analytics tools like Kibana.
+
+**Mappings:** ES can automatically assigns data types to the data (JSON fields) inserted into it. But you can also define "mappings" to strictly define the datatype of all or specific fields:
+
+```
+curl -H "Content-Type:application/json" -XPUT 127.0.0.1:9200/movies -d '
+{
+	"mappings": {
+		"<index-name>" : {
+			"properties": {
+				"<field-name eg. year>" : {"type": "date"}
+			}
+		}
+	}
+}
+```
+You can also use mappings to make a field queryable = true/false, or to define your **tokenizer** (that splits strings based on white space, punctuation etc) and **token-filter** (that does lowercasing, stemming, stopwords etc).
+
+**Kibana devtools**
 
 Sample ES queries to execute on Kibana -> devtools:
 
@@ -100,7 +131,7 @@ GET /vehicles/car/_search
   }
 }
 
-//Search using queries
+//Search using JSON body
 GET /vehicles/car/_search
 {
   "query": {
@@ -118,9 +149,34 @@ POST /vehicles/cars/_bulk
 {....}
 
 ```
-**TODO: add a sample response**
+**Sample response**
 
 GET query returns the data array against 'hits' key in the response json. The _score value in the response gives the relevance of the returned document. _maxScore is the highest score among the the documents returned.
+
+```
+[Results]
+"hits": {
+  "total": 2,
+  "max_score": 1.6323128,
+  "hits": [
+    {
+      "_index": "bookdb_index",
+      "_type": "book",
+      "_id": "3",
+      "_score": 1.6323128,
+      "_source": {
+        "summary": "build scalable search applications using Elasticsearch without having to do complex low-level programming or understand advanced data science algorithms",
+        "title": "Elasticsearch in Action",
+        "publish_date": "2015-12-03"
+      },
+      "highlight": {
+        "title": [
+          "Elasticsearch <em>in</em> <em>Action</em>"
+        ]
+      }
+    },
+	{...}
+```
 
 **Pagination:** GET by default returns top 10 records. You can modify this behaviour by giving size parameter. You can combine from, size and sort parameters to get paginated results. eg:
 
@@ -138,10 +194,13 @@ GET /vehicles/car/_search
 }
 
 ```
+---------------
+
 **Index Structure**
 
 The PUT shown above creates the index structure on the fly by itself. ES assigns datatypes to the fields as per the data being fed.
-//TODO: available data types
+
+Common ES 6 data types: text, keyword, date, long, integer, double, float, boolean, binary, ranges (integer/float/long/double ranges). 
 
 We can also create the index explicitly with: 
 1. custom settings(for specifying shards and replicas) and 
@@ -149,14 +208,16 @@ We can also create the index explicitly with:
 
 Once the index has been created, above settings cannot be changed. If change is needed, index has to be deleted and re-created.
 
-TODO: standard analyzer
-Explore different analyzers: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-analyzers.html
+**Analyzers**
 
+Analyzers are used to define strategy for partial matching of search results. Search results depend on the analyzer used, eg. case-insensitive, stemmed, stopwords removed, synonyms applied etc.
+
+Eg. of index creation, specifying no. of shards, replicas, data-type/analyzer for a speciifc field named "gender". Also note that replicas are created for each primary shard. Hence in the below eg, we will get 3(primary)+ 3X1 (replicas) = 6 shards.
 ```
 PUT /customers
 {
 	"settings": {
-		"number_of_shards: 2,
+		"number_of_shards: 3,
 		"number_of_replicas: 1
 		},
 	"mapping": {
@@ -169,6 +230,37 @@ PUT /customers
 }
 ```
 
+Fields of types **Text** allow analyzing. Mappings can be used to suppress analyzing by declaring them of type **keyword**. This is done if you want exact match for the field (as against to partial match of analyzed fields).
+
+Important to note that analyzed fields (text as above) cannot be used for sorting as data exists in the inverted index as individual terms, not the enitre string. If you really want to sort on an analyzed field, map an unanalyzed copy of the field, which is of type keyword:
+
+```
+curl.....
+{
+	"mappings":{
+		"movie": {
+			"properties": {
+				"title": {
+					"type":"text",
+					"fields": {
+						"raw":{   //give any name for the copy
+							"type":"keyword"
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+Do reindex after applying above mapping. Now sort using the unalayzed field:
+
+curl -XGET '127.0.0.1:9200/movies/movie/_search?sort=title.raw&pretty'
+
+```
+
+-------------------------
+
 **Schema scrictness:**
 
 After defining the mapping, if you try to insert a document with an extra data column, then it will be accepted and the mapping is automatically updated to include this field as well. If you do not want this and want to enforce the schema, then you can do at time of index creation as : 
@@ -178,28 +270,41 @@ After defining the mapping, if you try to insert a document with an extra data c
 
 **DSL: Domain Specific Language** is the JSON language that Elastic search understands. DSL has 2 components: **Query and Filter**
 
-1. Query context
+1. Query context: return data in terms of relevance
 
-query:bool:must/must_not/should(good to have), query:range
+Syntax: 'query:bool:must/must_not/should', 'query:range'
 
-should is goot to have, so records clearing the should condition get a better score.
+'should' means good to have, so records clearing the should condition get a better score.
 
-2. Filter context
+2. Filter context: yes/no type of search
+
+Syntax: 'query:bool:filter:match'
 
 filter comes inside query only, it can not be given in a standalone way. 
-query:bool:filter:match
 
-Main difference bw query and filter is that filter does not do relevance scoring. All filtered records get a _score=0. Hence filters are very fast, query on the other hand give relevance score.
+Main difference bw query and filter is that filter does not do relevance scoring. All filtered records get a _score=0. Hence filters are very fast, query on the other hand give relevance score. Use filters when you can as they are faster and cacheable.
 
 You can give must/must_not/should inside filter as well. The score will stay 0 as well.
 
-If you give must/must_not/should in parallal to filter, then it is a mix of query and filter contexts, and now the results returned will have a relevance score.
+If you give must/must_not/should in parallal to filter, then it is a mix of query and filter contexts, and now the results returned will have a relevance score. eg below:
+
+```
+curl ......
+{
+	"query": {
+		"bool":{				//bool is used to combine filters/queries
+			"must":{"term" : {"title":"trek"}},        //query
+			"filter":{range": {"year":{"gte":2010}}}   //filter
+		}
+	}
+}
+```
 
 You can change the relevance score based on some fields, by bumping these fields by a boost factor using ^. eg. "match": {"name":"abc^2"} -> boosting name=abc by a factor of 2.
 
 **Aggregation**
 
-ES is very fast when it comes to aggreagating as compared to relational databases. This makes ES popular in big data world.
+ES is very fast when it comes to aggreagating as compared to relational databases and even hadoop or spark. This makes ES popular in big data world.
 
 Performed using **'aggs'** keyword. You can perform aggregation like count, min, max, average, sum etc. using respective keys or using stats keyword that covers all of the aggregations.
 
@@ -218,6 +323,51 @@ GET /vehicles/car/_search
 							}
 						}
 ```
+You can also use aggregation to create histogram data by providing the interval on a field value.
+
+ES provides very good in built support for aggregating on fields that contain time and dates.
+
+**Optimistic Concurrency:**
+
+Every document has a _version field. ES documents are immutable. When you update an existing document, a new document is created with an incremented _version and the old document is marked for deletion.
+
+When 2 parallel threads try to update the same document version, ES allows only 1, while the other gets an error. You can configure retry_on_conflicts=N, where the failed thread can try max N number of times to write into ES using the updated version number.
+
+## Advanced ES Concepts
+
+**X-Pack** if enabled, helps with security, cluster monitoring, ML etc. Can be accessed via 'Monitoring' tab on Kibana.
+
+**Full-text vs phrasal queries:**
+
+Phrasal queries can be given using "match_phrase". Returns the results in correct relevance order. You can further add "slop" to your queries that represents how many extra words are allowed between the words given in the search phrase. Of course, lesser the distance, more the relevance score.
+
+```
+//allows 2 words bw star and beyond:
+
+curl ......
+{
+ "query" :{
+	 "match_phrase": {
+		 "title": {"query" :"star beyond", "slop":2} 
+	 }
+ }
+}
+```
+**Fuzziness:** A way to account for typos and misspellings in search query. Results are driven by **levenshtein edit distance** which is basically the no. of substitutions/insertions/deleteions required to match search results. When making fuzzy queries, we specify how much fuzziness is permitted. You can also give fuzziness:AUTO that allows different fuzziness tolerance based on the length of the text.
+
+**Search as you type:** Create a custom analyzer to create N-grams of the text field. In this custom analyzer, combine 'autocomplete analyzer' along with filter of type 'autocomplete_filter', latter searches as per specified min/max N-gram values. Next, map your field with this custom analyzer using a 'mapping' and re-index. Lastly, when making the search query, use standard analyzer, and not the custom analyzer that you created, as we dont want to split our search query text into N-grams.
+
+**Scaling using multiple indices:** No need to store all data in one index. You can split it into different indices, and make search queries to both the indices. You can use aliases to point to index, and use alias in your queries. Eg. For time series data, you can have 2 indices with aliases "logs_current", and "logs_3_months", and point these to specific indices as they rotate (ie current data becomes old data in 3 months, so you can delete index having old data, and make logs_3_month point to current, and then create a new empty index and make logs_current point to this new index)
+
+**H/W considerations:** 
+1. 64GM RAM is enough (32 for ES, and 32 for OS/disk cache for lucene). If you give more than 32 GB to ES, in memory pointers can blow up.
+2. CPU not that important as ES is not heavy on CPU.
+3. Use RAID0, cluster is already redundant, hence no need of RAID1 etc.
+4. SSD fast disks and fast network are prefered.
+
+**Snapshots:** Used to backup indices. Smart enough to only store changes since the last snapshot. When restoring snapshots, you must first close the index.
+
+**Cloud:** AWS and Elastic Cloud provide ES offerings, where you can create your ES clusters. You get a cluster url and a Kibana url to connect to.
 
 ## References
 
@@ -225,3 +375,4 @@ Java-ES POC: https://github.com/ramit21/elasticsearch-java
 
 ELK stack using custom yml configs with Docker: https://medium.com/analytics-vidhya/elk-stack-in-docker-6285ec1ac1aa
 
+Analyzers: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-analyzers.html
