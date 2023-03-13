@@ -80,7 +80,7 @@ Once index has been created, no. of replicas can be increased on runtime. No. of
 
 Elastic search uses inverted index for indexing the words. ES also maintains a relevance score on the indexed items.
 
-Elastic search is document based. Rel db to ES6 analogy: Table -> Index, row -> Document, column -> Field.
+Elastic search is document based. Rel db to ES analogy: Table -> Index, row -> Document, column -> Field.
 
 ES sends/receives data as JSON over HTTP(s).
 
